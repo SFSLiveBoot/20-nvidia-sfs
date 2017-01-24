@@ -1,0 +1,9 @@
+[Unit]
+Before=display-manager.service gdm.service gdm3.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/bin/setup-nvidia
+
+[Install]
+WantedBy=graphical.target

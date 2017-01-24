@@ -1,0 +1,15 @@
+#!/bin/sh
+
+test -n "$NVIDIA_RUN" || {
+  echo "ERROR: need to set variable NVIDIA_RUN to driver installer path" >&2
+  exit 1
+}
+
+set -e
+tmp_run="$(mktemp -u /tmp/installer-XXXXXX.run)"
+ln -s "$NVIDIA_RUN" "$tmp_run"
+target_dir=$(sh "$tmp_run" --info | awk '/Target/{print $4}')
+
+(cd "$DESTDIR/opt"; sh "$tmp_run" -x ; ln -s "$target_dir" nvidia)
+
+rm "$tmp_run"

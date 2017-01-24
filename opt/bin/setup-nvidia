@@ -1,0 +1,114 @@
+#!/bin/sh
+
+: ${nvdir:=/opt/nvidia}
+: ${nvlib:=/usr/lib/nvidia}
+: ${libglx_dir:=/usr/lib/xorg/modules/extensions}
+: ${mod_build:=/usr/src/modules/nvidia}
+: ${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}
+: ${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}
+
+: ${kver:=$(uname -r)}
+
+test ! -e /etc/default/nvidia || . /etc/default/nvidia
+
+has_nvidia() {
+  local pci
+  for pci in $(grep -l 0x10de /sys/bus/pci/devices/*/vendor);do
+    if grep -q 0x0300 "${pci%/vendor}/class";then
+      return 0
+    fi
+  done
+  return 1
+}
+
+prep_modules() {
+  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || depmod $kver
+  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || {
+    test -e "$mod_build" || {
+      mkdir -p "${mod_build%/*}"
+      cp -r "$nvdir/kernel" "$mod_build"
+    }
+    (
+      test -n "$CC" ||
+        export CC="gcc-$(grep -o "gcc version [^[:space:]]*" /proc/version | cut -f3 -d " "  | cut -f1-2 -d.)"
+      test -x "$(which "$CC")" || { unset CC ; export IGNORE_CC_MISMATCH=1; }
+      
+      cd "$mod_build"
+      j=$(grep -c ^processor /proc/cpuinfo)
+      test -n "$j" || j=1
+      make -j$j
+      make -f Makefile INSTALL_MOD_STRIP=1 modules_install
+      test ! -d uvm || {
+        cd uvm
+        make -j$j
+        make -f Makefile INSTALL_MOD_STRIP=1 modules_install
+      }
+      depmod $kver
+    )
+  }
+}
+
+prep_libgl() {
+  local arch so nvdir_a
+  mkdir -p "$nvlib"
+  test -e "$nvlib/libglx.so" || ln -s "$nvdir"/libglx.so* "$nvlib/libglx.so"
+  for arch in x86_64 i386;do
+    mkdir -p "$nvlib/$arch-linux-gnu"
+    case "$arch" in i386) nvdir_a="$nvdir/32";; *) nvdir_a="$nvdir";;esac
+    for so in GL EGL;do
+      test -e "$nvlib/$arch-linux-gnu/lib${so}.so.1" ||
+        env nvlib="$nvlib" arch="$arch" so="$so" \
+          find "$nvdir_a" -maxdepth 1 -name "lib${so}.so.*.*" -exec sh -c 'ln -s "$1" "$nvlib/$arch-linux-gnu/lib${so}.so.1"' a {} +
+    done
+  done
+}
+
+prep_alt_glx() {
+  update-alternatives --list glx | grep -q "$nvlib" || {
+    update-alternatives --install /usr/lib/glx glx "$nvlib" 10 \
+      --slave /usr/lib/x86_64-linux-gnu/libGL.so.1 glx--libGL.so.1-x86_64-linux-gnu "$nvlib/x86_64-linux-gnu/libGL.so.1" \
+      --slave /usr/lib/x86_64-linux-gnu/libEGL.so.1 glx--libEGL.so.1-x86_64-linux-gnu "$nvlib/x86_64-linux-gnu/libEGL.so.1" \
+      --slave /usr/lib/i386-linux-gnu/libGL.so.1 glx--libGL.so.1-i386-linux-gnu "$nvlib/i386-linux-gnu/libGL.so.1" \
+      --slave /usr/lib/i386-linux-gnu/libEGL.so.1 glx--libEGL.so.1-i386-linux-gnu "$nvlib/i386-linux-gnu/libEGL.so.1" \
+      --slave /usr/lib/xorg/modules/linux/libglx.so glx--libglx.so "$nvlib"/libglx.so
+    ldconfig
+  }
+}
+
+create_xorg_conf() {
+  local pci bus_id dev_cls dev_id rest
+  mkdir -p "${xorg_conf%/*}"
+  for pci in $(grep -l 0x10de /sys/bus/pci/devices/*/vendor);do
+    grep -q 0x0300 "${pci%/vendor}/class" || continue
+    bus_id="${pci%/vendor}"
+    bus_id="${bus_id##*/}"
+    bus_id="${bus_id#*:}"
+    cat >"$xorg_conf" <<EOF
+Section "Device"
+    Identifier  "nvidia"
+    Driver      "nvidia"
+    BusID       "PCI:$(echo "$bus_id" | tr . :)"
+EndSection
+EOF
+  done
+}
+
+prep_libs() {
+  find "$nvdir/" -name "lib*.so.*.*" -exec ldconfig -v -l {} +
+  test -e "$ldso_conf" || cat >"$ldso_conf" <<EOF
+$nvdir
+$nvdir/32
+EOF
+  ldconfig
+}
+
+has_nvidia || exit 0
+set -e
+prep_libs
+prep_modules
+test -e "$xorg_conf" || create_xorg_conf
+prep_libgl
+prep_alt_glx
+test -e /dev/nvidia-uvm || if modprobe nvidia-uvm;then
+  mknod -m 0666 /dev/nvidia-uvm c $(awk '/nvidia-uvm/{print $1}' /proc/devices) 0
+fi
