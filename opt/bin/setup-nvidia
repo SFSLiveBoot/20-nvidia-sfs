@@ -1,8 +1,6 @@
 #!/bin/sh
 
 : ${nvdir:=/opt/nvidia}
-: ${nvlib:=/usr/lib/nvidia}
-: ${libglx_dir:=/usr/lib/xorg/modules/extensions}
 : ${mod_build:=/usr/src/modules/nvidia}
 : ${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}
 : ${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}
@@ -48,29 +46,16 @@ prep_modules() {
   }
 }
 
-prep_libgl() {
-  local arch so nvdir_a
-  mkdir -p "$nvlib"
-  test -e "$nvlib/libglx.so" || ln -s "$nvdir"/libglx.so* "$nvlib/libglx.so"
-  for arch in x86_64 i386;do
-    mkdir -p "$nvlib/$arch-linux-gnu"
-    case "$arch" in i386) nvdir_a="$nvdir/32";; *) nvdir_a="$nvdir";;esac
-    for so in GL EGL;do
-      test -e "$nvlib/$arch-linux-gnu/lib${so}.so.1" ||
-        env nvlib="$nvlib" arch="$arch" so="$so" \
-          find "$nvdir_a" -maxdepth 1 -name "lib${so}.so.*.*" -exec sh -c 'ln -s "$1" "$nvlib/$arch-linux-gnu/lib${so}.so.1"' a {} +
-    done
-  done
-}
-
 prep_alt_glx() {
-  update-alternatives --list glx | grep -q "$nvlib" || {
-    update-alternatives --install /usr/lib/glx glx "$nvlib" 10 \
-      --slave /usr/lib/x86_64-linux-gnu/libGL.so.1 glx--libGL.so.1-x86_64-linux-gnu "$nvlib/x86_64-linux-gnu/libGL.so.1" \
-      --slave /usr/lib/x86_64-linux-gnu/libEGL.so.1 glx--libEGL.so.1-x86_64-linux-gnu "$nvlib/x86_64-linux-gnu/libEGL.so.1" \
-      --slave /usr/lib/i386-linux-gnu/libGL.so.1 glx--libGL.so.1-i386-linux-gnu "$nvlib/i386-linux-gnu/libGL.so.1" \
-      --slave /usr/lib/i386-linux-gnu/libEGL.so.1 glx--libEGL.so.1-i386-linux-gnu "$nvlib/i386-linux-gnu/libEGL.so.1" \
-      --slave /usr/lib/xorg/modules/linux/libglx.so glx--libglx.so "$nvlib"/libglx.so
+  update-alternatives --list glx | grep -q "$nvdir" || {
+    update-alternatives --install /usr/lib/glx glx "$nvdir" 10 \
+      --slave /usr/lib/x86_64-linux-gnu/libGL.so.1 glx--libGL.so.1-x86_64-linux-gnu "$nvdir"/libGL.so.1.* \
+      --slave /usr/lib/x86_64-linux-gnu/libEGL.so.1 glx--libEGL.so.1-x86_64-linux-gnu "$nvdir"/libEGL.so.1 \
+      --slave /usr/lib/x86_64-linux-gnu/libGLESv2.so.2 glx--libGLESv2.so.2-x86_64-linux-gnu "$nvdir"/libGLESv2.so.2 \
+      --slave /usr/lib/i386-linux-gnu/libGL.so.1 glx--libGL.so.1-i386-linux-gnu "$nvdir"/32/libGL.so.1.* \
+      --slave /usr/lib/i386-linux-gnu/libEGL.so.1 glx--libEGL.so.1-i386-linux-gnu "$nvdir"/32/libEGL.so.1 \
+      --slave /usr/lib/i386-linux-gnu/libGLESv2.so.2 glx--libGLESv2.so.2-i386-linux-gnu "$nvdir"/32/libGLESv2.so.2 \
+      --slave /usr/lib/xorg/modules/linux/libglx.so glx--libglx.so "$nvdir"/libglx.so.*
     ldconfig
   }
 }
@@ -107,7 +92,6 @@ set -e
 prep_libs
 prep_modules
 test -e "$xorg_conf" || create_xorg_conf
-prep_libgl
 prep_alt_glx
 test -e /dev/nvidia-uvm || if modprobe nvidia-uvm;then
   mknod -m 0666 /dev/nvidia-uvm c $(awk '/nvidia-uvm/{print $1}' /proc/devices) 0
