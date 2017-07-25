@@ -87,12 +87,28 @@ EOF
   ldconfig
 }
 
+prep_devices() {
+  local mod devid_uvm devid_nvfe
+  for mod in nvidia_uvm nvidia_drm nvidia_modeset nvidia;do
+    test -d "/sys/module/$mod" || modprobe "$mod"
+  done
+
+  devid_uvm="$(awk '/nvidia-uvm/{print $1}' /proc/devices)"
+  devid_nvfe="$(awk '/nvidia-frontend/{print $1}' /proc/devices)"
+
+  test -e /dev/nvidia-uvm || test -z "$devid_uvm" || {
+    mknod -m 0666 /dev/nvidia-uvm c $devid_uvm 0
+  }
+
+  test -e /dev/nvidia0 || mknod -m 0666 /dev/nvidia0 c $devid_nvfe 0
+  test -e /dev/nvidiactl || mknod -m 0666 /dev/nvidiactl c $devid_nvfe 255
+  test -e /dev/nvidia-modeset || mknod -m 0666 /dev/nvidia-modeset c $devid_nvfe 254
+}
+
 has_nvidia || exit 0
 set -e
 prep_libs
 prep_modules
 test -e "$xorg_conf" || create_xorg_conf
 prep_alt_glx
-test -e /dev/nvidia-uvm || if modprobe nvidia-uvm;then
-  mknod -m 0666 /dev/nvidia-uvm c $(awk '/nvidia-uvm/{print $1}' /proc/devices) 0
-fi
+prep_devices
