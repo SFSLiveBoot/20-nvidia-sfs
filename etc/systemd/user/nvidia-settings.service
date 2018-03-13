@@ -1,0 +1,8 @@
+[Unit]
+ConditionPathExists=%h/.nvidia-settings-rc
+
+[Service]
+ExecStart=/opt/nvidia/nvidia-settings -l
+
+[Install]
+WantedBy=xsession.target
