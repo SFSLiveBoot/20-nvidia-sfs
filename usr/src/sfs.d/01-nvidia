@@ -1,6 +1,11 @@
 #!/bin/sh
 
-test -n "$NVIDIA_RUN" || {
+set -e
+. "$(dirname "$0")/.common.sh"
+
+: "${NVIDIA_RUN:=$(dl_file "$(latest_url)")}"
+
+test -s "$NVIDIA_RUN" || {
   echo "ERROR: need to set variable NVIDIA_RUN to driver installer path" >&2
   exit 1
 }
