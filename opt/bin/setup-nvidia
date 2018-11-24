@@ -48,6 +48,8 @@ prep_modules() {
 
 prep_alt_glx() {
   update-alternatives --list glx | grep -q "$nvdir" || {
+    local nv_glx="$(find "$nvdir/" -name "libglx.so.*" | head -1)"
+    local nv_glxserver="$(find "$nvdir/" -name "libglxserver_nvidia.so.*" | head -1)"
     update-alternatives --install /usr/lib/glx glx "$nvdir" 10 \
       --slave /usr/lib/x86_64-linux-gnu/libGL.so.1 glx--libGL.so.1-x86_64-linux-gnu "$nvdir"/libGL.so.1.* \
       --slave /usr/lib/x86_64-linux-gnu/libEGL.so.1 glx--libEGL.so.1-x86_64-linux-gnu "$nvdir"/libEGL.so.1 \
@@ -55,7 +57,8 @@ prep_alt_glx() {
       --slave /usr/lib/i386-linux-gnu/libGL.so.1 glx--libGL.so.1-i386-linux-gnu "$nvdir"/32/libGL.so.1.* \
       --slave /usr/lib/i386-linux-gnu/libEGL.so.1 glx--libEGL.so.1-i386-linux-gnu "$nvdir"/32/libEGL.so.1 \
       --slave /usr/lib/i386-linux-gnu/libGLESv2.so.2 glx--libGLESv2.so.2-i386-linux-gnu "$nvdir"/32/libGLESv2.so.2 \
-      --slave /usr/lib/xorg/modules/linux/libglx.so glx--libglx.so "$nvdir"/libglx.so.*
+      ${nv_glx:+--slave /usr/lib/xorg/modules/linux/libglx.so glx--libglx.so "$nv_glx"} \
+      ${nv_glxserver:+--slave /usr/lib/xorg/modules/extensions/libglxserver_nvidia.so glx--libglxserver.so "$nv_glxserver"}
     ldconfig
   }
 }
@@ -79,7 +82,7 @@ EOF
 }
 
 prep_libs() {
-  find "$nvdir/" -name "lib*.so.*.*" -exec ldconfig -v -l {} +
+  find "$nvdir/" -name "lib*.so.*.*" -exec ldconfig -l {} +
   test -e "$ldso_conf" || cat >"$ldso_conf" <<EOF
 $nvdir
 $nvdir/32
@@ -105,10 +108,18 @@ prep_devices() {
   test -e /dev/nvidia-modeset || mknod -m 0666 /dev/nvidia-modeset c $devid_nvfe 254
 }
 
+prep_vulkan() {
+  local json_tmpl="$nvdir/nvidia_icd.json.template" json_dst="/usr/share/vulkan/icd.d/nvidia_icd.json"
+  test -e "$json_tmpl" || return
+  mkdir -p "${json_dst%/*}"
+  sed -e "s/__NV_VK_ICD__/libGLX_nvidia.so.0/g" "$json_tmpl" >"$json_dst"
+}
+
 has_nvidia || exit 0
 set -e
 prep_libs
 prep_modules
 test -e "$xorg_conf" || create_xorg_conf
 prep_alt_glx
+prep_vulkan
 prep_devices
