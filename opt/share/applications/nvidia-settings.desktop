@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=NVIDIA X Server Settings
+Comment=Configure NVIDIA X Server Settings
+Exec=/opt/nvidia/nvidia-settings
+Terminal=false
+Type=Application
+Icon=/opt/nvidia/nvidia-settings.png
+Categories=Settings;HardwareSettings;
