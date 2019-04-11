@@ -1,11 +1,33 @@
 #!/bin/sh
 
-: ${nvdir:=/opt/nvidia}
-: ${mod_build:=/usr/src/modules/nvidia}
-: ${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}
-: ${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}
+: "${nvdir:=/opt/nvidia}"
+: "${mod_build:=/usr/src/modules/nvidia}"
+: "${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}"
+: "${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}"
 
-: ${kver:=$(uname -r)}
+: "${kver:=$(uname -r)}"
+
+get_nv_ver() {
+  local nv_ver_test
+  if test -L "$nvdir";then
+    nv_ver_test="$(readlink "$nvdir" | sed -e "s/.*-//")"
+    test -z "$nv_ver_test" -o -n "$(echo "$nv_ver_test" | tr -d 0-9.)" || {
+      echo "$nv_ver_test"
+      return
+    }
+  fi
+  if test -r "$nvdir/README.txt";then
+    nv_ver_test="$(awk '/Most Recent Driver Version:/{print $5}' "$nvdir/README.txt")"
+    test -z "$nv_ver_test" -o -n "$(echo "$nv_ver_test" | tr -d 0-9.)" || {
+      echo "$nv_ver_test"
+      return
+    }
+  fi
+  echo "WARNING: cannot determine NVidia driver version" >&2
+  return 1
+}
+
+: "${nv_ver:=$(get_nv_ver)}"
 
 test ! -e /etc/default/nvidia || . /etc/default/nvidia
 
@@ -21,7 +43,7 @@ has_nvidia() {
 
 prep_modules() {
   grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || depmod $kver
-  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || {
+  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep && test "x$(modinfo -F version nvidia)" = "x$nv_ver" || {
     test -e "$mod_build" || {
       mkdir -p "${mod_build%/*}"
       cp -r "$nvdir/kernel" "$mod_build"
