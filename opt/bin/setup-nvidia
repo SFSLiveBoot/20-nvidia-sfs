@@ -103,6 +103,17 @@ EOF
   done
 }
 
+mv_pre_vulkan() {
+  local IFS_save="$IFS" non_vulkan_dir
+  local non_vulkan_sh='for lib;do bn="${lib##*/}"; test -z "$(find "${lib%/*}/" -maxdepth 1 -type f -name "${bn%.$nv_ver}*" -not -name "$bn")" || echo "$lib";done'
+  for lib in $(nv_ver="$nv_ver" find "$nvdir"/ -name "lib*.so.$nv_ver" -exec sh -c "$non_vulkan_sh" _ {} +);do
+    non_vulkan_dir="${lib%/*}/non-vulkan"
+    test -d "$non_vulkan_dir" || mkdir -v -p "$non_vulkan_dir"
+    mv -v "$lib" "$non_vulkan_dir"
+  done
+  IFS="$IFS_save"
+}
+
 prep_libs() {
   find "$nvdir/" -name "lib*.so.*.*" -exec ldconfig -l {} +
   test -e "$ldso_conf" || cat >"$ldso_conf" <<EOF
@@ -139,6 +150,7 @@ prep_vulkan() {
 
 has_nvidia || exit 0
 set -e
+mv_pre_vulkan
 prep_libs
 prep_modules
 test -e "$xorg_conf" || create_xorg_conf
