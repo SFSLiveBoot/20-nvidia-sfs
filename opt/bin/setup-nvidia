@@ -142,10 +142,13 @@ prep_devices() {
 }
 
 prep_vulkan() {
-  local json_tmpl="$nvdir/nvidia_icd.json.template" json_dst="/usr/share/vulkan/icd.d/nvidia_icd.json"
-  test -e "$json_tmpl" || return
+  local json_tmpl="$nvdir/nvidia_icd.json.template" icd_json="$nvdir/nvidia_icd.json" json_dst="/usr/share/vulkan/icd.d/nvidia_icd.json"
   mkdir -p "${json_dst%/*}"
-  sed -e "s/__NV_VK_ICD__/libGLX_nvidia.so.0/g" "$json_tmpl" >"$json_dst"
+  if test -e "$icd_json";then
+    cp "$icd_json" "$json_dst"
+  elif test -e "$json_tmpl";then
+    sed -e "s/__NV_VK_ICD__/libGLX_nvidia.so.0/g" "$json_tmpl" >"$json_dst"
+  fi
 }
 
 has_nvidia || exit 0
