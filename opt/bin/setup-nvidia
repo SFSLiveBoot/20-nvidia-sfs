@@ -182,7 +182,7 @@ has_nvidia || exit 0
 set -e
 mv_pre_vulkan
 prep_libs
-prep_modules
+test ! -d "/lib/modules/$(uname -r)" || prep_modules
 test -e "$xorg_conf" || create_xorg_conf
 prep_alt_glx
 prep_vulkan
