@@ -1,7 +1,6 @@
 #!/bin/sh
 
 : "${nvdir:=/opt/nvidia}"
-: "${mod_build:=/usr/src/modules/nvidia}"
 : "${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}"
 : "${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}"
 
@@ -28,6 +27,7 @@ get_nv_ver() {
 }
 
 : "${nv_ver:=$(get_nv_ver)}"
+: "${mod_build:=/usr/src/nvidia-$nv_ver}"
 
 test ! -e /etc/default/nvidia || . /etc/default/nvidia
 
@@ -44,27 +44,54 @@ has_nvidia() {
 prep_modules() {
   grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || depmod $kver
   grep -q /nvidia.ko: /lib/modules/$kver/modules.dep && test "x$(modinfo -F version nvidia)" = "x$nv_ver" || {
-    test -e "$mod_build" || {
-      mkdir -p "${mod_build%/*}"
-      cp -r "$nvdir/kernel" "$mod_build"
-    }
-    (
-      test -n "$CC" ||
-        export CC="gcc-$(grep -o "gcc version [^[:space:]]*" /proc/version | cut -f3 -d " "  | cut -f1-2 -d.)"
-      test -x "$(which "$CC")" || { unset CC ; export IGNORE_CC_MISMATCH=1; }
-      
-      cd "$mod_build"
-      j=$(grep -c ^processor /proc/cpuinfo)
-      test -n "$j" || j=1
-      make -j$j
-      make -f Makefile INSTALL_MOD_STRIP=1 modules_install
-      test ! -d uvm || {
-        cd uvm
+    test -d "$mod_build" || cp -r "$nvdir/kernel" "$mod_build"
+    local j="$(grep -c ^processor /proc/cpuinfo)"
+    test -n "$j" || j=1
+    for f in 1 1-2; do
+      export IGNORE_CC_MISMATCH=""
+      kernel_cc_ver="$(grep -o "gcc version [^[:space:]]*" /proc/version | cut -f3 -d " "  | cut -f$f -d.)"
+      cc_ver="$(${CC:-gcc} --version | head -1 | sed -e 's/.* //' | cut -f$f -d.)"
+      if test "$kernel_cc_ver" = "$cc_ver";then
+        break
+        elif test -x "$(which gcc-$kernel_cc_ver)";then
+        export CC="gcc-$kernel_cc_ver"
+        break
+    else export IGNORE_CC_MISMATCH=1;fi
+    done
+    if test -e "$mod_build/dkms.conf";then
+      mod_tmp="$(mktemp)"
+            cat >"$mod_tmp" <<"EOF"
+BUILT_MODULE_NAME[0]="nvidia"
+DEST_MODULE_LOCATION[0]="/kernel/drivers/video"
+BUILT_MODULE_NAME[1]="nvidia-uvm"
+DEST_MODULE_LOCATION[1]="/kernel/drivers/video"
+BUILT_MODULE_NAME[2]="nvidia-modeset"
+DEST_MODULE_LOCATION[2]="/kernel/drivers/video"
+BUILT_MODULE_NAME[3]="nvidia-drm"
+DEST_MODULE_LOCATION[3]="/kernel/drivers/video"
+EOF
+      sed -e "/__DKMS_MODULES/{z;r $mod_tmp
+}" \
+          -e "s/__IGNORE_CC_MISMATCH/$IGNORE_CC_MISMATCH/g" \
+          -e "s/__EXCLUDE_MODULES//g" -e "s/__JOBS/$j/g" \
+          -e "s/__VERSION_STRING/$nv_ver/g" \
+          -e "s/will be/was/" \
+          -i "$mod_build/dkms.conf"
+      rm -f "$mod_tmp"
+      dkms install "$mod_build"
+    else
+      (
+        cd "$mod_build"
         make -j$j
         make -f Makefile INSTALL_MOD_STRIP=1 modules_install
-      }
-      depmod $kver
-    )
+        test ! -d uvm || {
+          cd uvm
+          make -j$j
+          make -f Makefile INSTALL_MOD_STRIP=1 modules_install
+        }
+        depmod $kver
+      )
+    fi
   }
 }
 
