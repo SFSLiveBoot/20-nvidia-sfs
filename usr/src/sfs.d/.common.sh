@@ -9,7 +9,7 @@ installed_ver() {
 }
 
 latest_ver() {
-  grep "Latest Long Lived Branch Version" "$(dl_file "$dist_url")" | grep -Eo '[0-9]+\.[0-9]+' | head -1 
+  sed -Ene '/Latest Production Branch Version: <a /{s/.*Latest Production Branch Version: <a[^>]*>//;s/<.*//;p;q}' "$(dl_file "$dist_url")"
 }
 
 latest_url() {
