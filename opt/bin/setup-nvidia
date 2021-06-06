@@ -115,18 +115,34 @@ prep_alt_glx() {
 create_xorg_conf() {
   local pci bus_id dev_cls dev_id rest
   mkdir -p "${xorg_conf%/*}"
+  local nr=0
   for pci in $(grep -l 0x10de /sys/bus/pci/devices/*/vendor);do
-    grep -q 0x0300 "${pci%/vendor}/class" || continue
-    bus_id="${pci%/vendor}"
-    bus_id="${bus_id##*/}"
+    pci="${pci%/vendor}"
+    grep -q 0x0300 "${pci}/class" || continue
+    bus_id="${pci##*/}"
     bus_id="${bus_id#*:}"
-    cat >"$xorg_conf" <<EOF
+    cat >>"$xorg_conf" <<EOF
 Section "Device"
-    Identifier  "nvidia"
+    Identifier  "card$nr"
     Driver      "nvidia"
     BusID       "PCI:$(echo "$bus_id" | tr . :)"
 EndSection
 EOF
+  nr="$(($nr+1))"
+  done
+  for pci in $(grep -l 0x0300 /sys/bus/pci/devices/*/class);do
+    pci="${pci%/class}"
+    if grep -q 0x10de "${pci}/vendor";then continue;fi
+    bus_id="${pci##*/}"
+    bus_id="${bus_id#*:}"
+    cat >>"$xorg_conf" <<EOF
+Section "Device"
+    Identifier  "card$nr"
+    Driver      "modesetting"
+    BusID       "PCI:$(echo "$bus_id" | tr . :)"
+EndSection
+EOF
+  nr="$(($nr+1))"
   done
 }
 
