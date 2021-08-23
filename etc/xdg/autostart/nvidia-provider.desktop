@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Use NVidia provider for all outputs
+Exec=/opt/bin/xrandr-nv-provider.sh
+NoDisplay=true
+X-GNOME-Autostart-Phase=DisplayServer  
+
