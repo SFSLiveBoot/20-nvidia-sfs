@@ -5,5 +5,3 @@ After=gnome-session-x11.target xsession.target
 
 [Service]
 ExecStart=/opt/bin/xrandr-nv-provider.sh
-Type=oneshot
-RemainAfterExit=yes
