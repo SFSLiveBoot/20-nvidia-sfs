@@ -1,11 +1,6 @@
 #!/bin/sh
 
-providerlist="$(xrandr --listproviders)"
-
-case "$providerlist" in *name:NVIDIA-0*)
-  case "$providerlist" in *name:modesetting*)
-    for id in $(echo "$providerlist" | awk '/name:modesetting/{print $2}' | cut -f1 -d:);do
-      (set -x; xrandr --setprovideroutputsource $id NVIDIA-0)
-    done
-  ;; esac
-;; esac
+# Connect all monitors from other providers to the first output source
+for provider in $(xrandr --listproviders  | grep -Eo "^Provider [1-9]+" | cut -f2 -d" ");do
+  xrandr --setprovideroutputsource "$provider" 0
+done
