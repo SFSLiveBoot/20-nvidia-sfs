@@ -194,6 +194,13 @@ prep_vulkan() {
   fi
 }
 
+prep_egl() {
+  local src="$nvdir/10_nvidia.json" dst="/usr/share/glvnd/egl_vendor.d/10_nvidia.json" 
+  if test -d "${dst%/*}" -a -e "$src" -a ! -e "$dst";then
+    ln -s "$src" "$dst"
+  fi
+}
+
 has_nvidia || exit 0
 set -e
 mv_pre_vulkan
@@ -203,3 +210,4 @@ test -e "$xorg_conf" || create_xorg_conf
 prep_alt_glx
 prep_vulkan
 prep_devices
+prep_egl
