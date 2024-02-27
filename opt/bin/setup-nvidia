@@ -173,15 +173,17 @@ prep_devices() {
   done
 
   devid_uvm="$(awk '/nvidia-uvm/{print $1}' /proc/devices)"
-  devid_nvfe="$(awk '/nvidia-frontend/{print $1}' /proc/devices)"
+  devid_nvfe="$(awk '/nvidia-frontend|nvidiactl/{print $1}' /proc/devices | head -1)"
 
   test -e /dev/nvidia-uvm || test -z "$devid_uvm" || {
     mknod -m 0666 /dev/nvidia-uvm c $devid_uvm 0
   }
 
-  test -e /dev/nvidia0 || mknod -m 0666 /dev/nvidia0 c $devid_nvfe 0
-  test -e /dev/nvidiactl || mknod -m 0666 /dev/nvidiactl c $devid_nvfe 255
-  test -e /dev/nvidia-modeset || mknod -m 0666 /dev/nvidia-modeset c $devid_nvfe 254
+  test -z "$devid_nvfe" || {
+    test -e /dev/nvidia0 || mknod -m 0666 /dev/nvidia0 c $devid_nvfe 0
+    test -e /dev/nvidiactl || mknod -m 0666 /dev/nvidiactl c $devid_nvfe 255
+    test -e /dev/nvidia-modeset || mknod -m 0666 /dev/nvidia-modeset c $devid_nvfe 254
+  }
 }
 
 prep_vulkan() {
