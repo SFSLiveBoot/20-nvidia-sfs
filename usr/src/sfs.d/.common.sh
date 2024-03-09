@@ -5,7 +5,7 @@
 : "${nv_arch:=Linux-x86_64}"
 
 installed_ver() {
-  readlink "$DESTDIR/opt/nvidia" | sed -e "s/^NVIDIA-${nv_arch}-//"
+  readlink "$DESTDIR/usr/lib/nvidia/current" | sed -e "s/^NVIDIA-${nv_arch}-//"
 }
 
 latest_ver() {

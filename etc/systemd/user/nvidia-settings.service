@@ -2,7 +2,7 @@
 ConditionPathExists=%h/.nvidia-settings-rc
 
 [Service]
-ExecStart=/opt/nvidia/nvidia-settings -l
+ExecStart=/usr/lib/nvidia/current/nvidia-settings -l
 
 [Install]
 WantedBy=xsession.target

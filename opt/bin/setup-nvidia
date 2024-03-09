@@ -1,6 +1,6 @@
 #!/bin/sh
 
-: "${nvdir:=/opt/nvidia}"
+: "${nvdir:=/usr/lib/nvidia/current}"
 : "${xorg_conf:=/etc/X11/xorg.conf.d/nvidia-xorg.conf}"
 : "${ldso_conf:=/etc/ld.so.conf.d/nvidia.conf}"
 

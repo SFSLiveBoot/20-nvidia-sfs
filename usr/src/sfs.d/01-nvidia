@@ -15,6 +15,6 @@ tmp_run="$(mktemp -u /tmp/installer-XXXXXX.run)"
 ln -s "$NVIDIA_RUN" "$tmp_run"
 target_dir=$(sh "$tmp_run" --info | awk '/Target/{print $4}')
 
-(cd "$DESTDIR/opt"; sh "$tmp_run" -x ; ln -s "$target_dir" nvidia)
+(cd "$DESTDIR/usr/lib/nvidia"; sh "$tmp_run" -x ; ln -s "$target_dir" current)
 
 rm "$tmp_run"
