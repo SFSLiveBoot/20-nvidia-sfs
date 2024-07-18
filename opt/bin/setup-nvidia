@@ -42,8 +42,8 @@ has_nvidia() {
 }
 
 prep_modules() {
-  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep || depmod $kver
-  grep -q /nvidia.ko: /lib/modules/$kver/modules.dep && test "x$(modinfo -F version nvidia)" = "x$nv_ver" || {
+  grep -Eq '/nvidia\.ko(\.xz)?:' "/lib/modules/$kver/modules.dep" || depmod "$kver"
+  grep -Eq '/nvidia\.ko(\.xz)?:' "/lib/modules/$kver/modules.dep" && test "x$(modinfo -F version nvidia)" = "x$nv_ver" || {
     test -d "$mod_build" || cp -r "$nvdir/kernel" "$mod_build"
     local j="$(grep -c ^processor /proc/cpuinfo)"
     test -n "$j" || j=1
