@@ -9,7 +9,7 @@ installed_ver() {
 }
 
 latest_ver() {
-  sed -Ene '/Latest Production Branch Version: <a /{s/.*Latest Production Branch Version: <a[^>]*>//;s/<.*//;p;q}' "$(dl_file "$dist_url")" | tr -d '[:space:]'
+  grep -Eo 'Latest Production[^0-9]*?<a [^>]*>[^<]+</a>' "$(dl_file "$dist_url")" | grep -o '<a [^>]*>.*</a>' | cut -f2 -d'>' | cut -f1 -d'<' | head -1 | tr -d '[[:space:]]'
 }
 
 latest_url() {
