@@ -187,13 +187,17 @@ prep_devices() {
 }
 
 prep_vulkan() {
-  local json_tmpl="$nvdir/nvidia_icd.json.template" icd_json="$nvdir/nvidia_icd.json" json_dst="/usr/share/vulkan/icd.d/nvidia_icd.json"
+  local json_tmpl="$nvdir/nvidia_icd.json.template" icd_json="$nvdir/nvidia_icd.json" json_dst="/usr/share/vulkan/icd.d/nvidia_icd.json" layers_json="/etc/vulkan/implicit_layer.d/nvidia_layers.json"
   mkdir -p "${json_dst%/*}"
   if test -e "$icd_json";then
     cp "$icd_json" "$json_dst"
   elif test -e "$json_tmpl";then
     sed -e "s/__NV_VK_ICD__/libGLX_nvidia.so.0/g" "$json_tmpl" >"$json_dst"
   fi
+  test -e "$layers_json" -o ! -e "$nvdir/nvidia_layers.json" || {
+    mkdir -p "${layers_json%/*}"
+    ln -s "$nvdir/nvidia_layers.json" "$layers_json"
+  }
 }
 
 prep_egl() {
@@ -201,6 +205,19 @@ prep_egl() {
   if test -d "${dst%/*}" -a -e "$src" -a ! -e "$dst";then
     ln -s "$src" "$dst"
   fi
+}
+
+prep_wayland() {
+  local pf_dir="/usr/share/egl/egl_external_platform.d/" json
+  local gbm_dst="/usr/lib/x86_64-linux-gnu/gbm/nvidia-drm_gbm.so" gbm_src="$nvdir/libnvidia-allocator.so.1"
+  mkdir -p "$pf_dir"
+  for json in 10_nvidia_wayland.json 15_nvidia_gbm.json;do
+    test -e "$pf_dir/$json" -o ! -e "$nvdir/$json" || ln -s "$nvdir/$json" "$pf_dir/$json"
+  done
+  test -e "$gbm_dst" -o ! -e "$gbm_src" || {
+    mkdir -p "${gbm_dst%/*}"
+    ln -s "$gbm_src" "$gbm_dst"
+  }
 }
 
 has_nvidia || exit 0
@@ -213,3 +230,4 @@ prep_alt_glx
 prep_vulkan
 prep_devices
 prep_egl
+prep_wayland
