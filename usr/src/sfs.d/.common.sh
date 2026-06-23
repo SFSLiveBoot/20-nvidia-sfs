@@ -4,6 +4,8 @@
 : "${dist_url:=https://www.nvidia.com/object/unix.html}"
 : "${nv_arch:=Linux-x86_64}"
 
+: "${debian_pkgs:=nvidia-suspend-common}"
+
 installed_ver() {
   readlink "$DESTDIR/usr/lib/nvidia/current" | sed -e "s/^NVIDIA-${nv_arch}-//"
 }

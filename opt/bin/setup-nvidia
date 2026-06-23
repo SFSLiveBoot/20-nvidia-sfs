@@ -220,6 +220,11 @@ prep_wayland() {
   }
 }
 
+setup_suspend() {
+  systemctl is-enabled nvidia-suspend nvidia-hibernate nvidia-resume | grep -Fxq -e not-found -e enabled ||
+    systemctl enable nvidia-suspend nvidia-hibernate nvidia-resume
+}
+
 has_nvidia || exit 0
 set -e
 mv_pre_vulkan
@@ -231,3 +236,4 @@ prep_vulkan
 prep_devices
 prep_egl
 prep_wayland
+setup_suspend
