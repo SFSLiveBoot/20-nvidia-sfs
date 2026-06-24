@@ -12,7 +12,13 @@ installed_ver() {
 }
 
 latest_ver() {
-  : "${latest_ver:=$(cut -f1 -d" " "$(dl_file "$latest_ver_url")")}"
+  test -n "$latest_ver" || {
+    if test -n "$major_ver" ;then
+      latest_ver="$(grep -o '<a href[^>]*>[^/<]*/' "$(dl_file "$dl_base/")" | cut -f2 -d'>' | cut -f1 -d/ | sort -V | grep "^$major_ver\." | tail -1)"
+    else
+      latest_ver="$(cut -f1 -d" " "$(dl_file "$latest_ver_url")")"
+    fi
+  }
   echo "$latest_ver"
 }
 
