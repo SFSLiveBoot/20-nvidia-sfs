@@ -1,8 +1,9 @@
 : "${lbu:=/opt/LiveBootUtils}"
 . "$lbu/scripts/common.func"
 
-: "${dist_url:=https://www.nvidia.com/object/unix.html}"
 : "${nv_arch:=Linux-x86_64}"
+: "${dl_base:=https://download.nvidia.com/XFree86/${nv_arch}}"
+: "${latest_ver_url:=${dl_base}/latest.txt}"
 
 : "${debian_pkgs:=nvidia-suspend-common}"
 
@@ -11,9 +12,11 @@ installed_ver() {
 }
 
 latest_ver() {
-  grep -Eo 'Latest Production[^0-9]*?<a [^>]*>[^<]+</a>' "$(dl_file "$dist_url")" | grep -o '<a [^>]*>.*</a>' | cut -f2 -d'>' | cut -f1 -d'<' | head -1 | tr -d '[[:space:]]'
+  : "${latest_ver:=$(cut -f1 -d" " "$(dl_file "$latest_ver_url")")}"
+  echo "$latest_ver"
 }
 
 latest_url() {
-  echo "http://us.download.nvidia.com/XFree86/${nv_arch}/$(latest_ver)/NVIDIA-${nv_arch}-$(latest_ver).run"
+  : "${latest_url:=http://us.download.nvidia.com/XFree86/${nv_arch}/$(latest_ver)/NVIDIA-${nv_arch}-$(latest_ver).run}"
+  echo "$latest_url"
 }
